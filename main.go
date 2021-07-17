@@ -138,10 +138,6 @@ func (e Expr) Execute(variables map[rune]bool) bool {
 	return safety && val
 }
 
-func (e *Expression) execute(values map[rune]bool) bool {
-	return false
-}
-
 func GenerateExamples(expr Expression) []Row {
 	count := int(math.Pow(float64(len(expr.variables)), 2.0))
 	rows := make([]Row, 0, count)
@@ -154,7 +150,7 @@ func GenerateExamples(expr Expression) []Row {
 		values := make(map[rune]bool)
 
 		for i, r := range variables {
-			if (i & mask) == 1 {
+			if ((1 << i) & mask) == 1 {
 				values[r] = true
 			} else {
 				values[r] = false
