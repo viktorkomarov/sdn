@@ -2,12 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math"
 )
 
-// E =  F | H | S H | S F
-// H =  F D F | (H)
-// F = one of (A....Z)
+// E = V | S E | (E) | V D E
+// V = one of (A....Z)
 // S =  !
 // D =  & | '|' | > | - | +
 
@@ -16,16 +16,73 @@ type Expression struct {
 	executor  Executor
 }
 
+func parseDoubleOp(tokens []TokenVal) error {
+	if len(tokens) == 0 {
+		return ErrEmptyTokens
+	}
+
+	for _, val := range []rune{'&', '|', '>', '-', '+'} {
+		if val == tokens[0].Val {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unknown double operation %s", string(tokens[0].Val))
+}
+
 var ErrEmptyTokens = errors.New("empty tokens")
 
-func parseExpr(tokens []TokenVal) (Expr, error) {
+func parseExpr(tokens []TokenVal) (Executor, error) {
 	if len(tokens) == 0 {
-		return Expr{}, ErrEmptyTokens
+		return nil, ErrEmptyTokens
+	}
+
+	switch tokens[0].Typ {
+	case Variable:
+		if err := parseDoubleOp(tokens[1:]); err != nil {
+			if errors.Is(err, ErrEmptyTokens) {
+				return Var{Name: tokens[0].Val}, nil
+			}
+
+			return nil, err
+		}
+
+		second, err := parseExpr(tokens[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		return Expr{
+			Left:  Var{Name: tokens[0].Val},
+			Right: second,
+			Op:    tokens[1],
+		}, nil
+	case SingleOp:
+		exec, err := parseExpr(tokens[1:])
+		if err != nil {
+			return nil, err
+		}
+		return ReverseExecutor{exec}, nil
+	case OpenBracket:
+		exec, err := parseExpr(tokens[1:])
+		if err != nil {
+			return nil, err
+		}
+
+		return exec, nil
+	case CloseBracket:
+		return nil, nil // ???
+	default:
+		return nil, fmt.Errorf("unexpected toke %s", string(tokens[0].Val))
 	}
 }
 
 func Parse(str string) (Expression, error) {
-	tokens := tokenize(str)
+	tokens, err := tokenize(str)
+	if err != nil {
+		return Expression{}, err
+	}
+
 	variables := make(map[rune]bool)
 	for _, token := range tokens {
 		if token.Typ == Variable {
@@ -33,12 +90,10 @@ func Parse(str string) (Expression, error) {
 		}
 	}
 
-	parseExpr(tokens)
-}
-
-type Row struct {
-	values map[rune]bool
-	result bool
+	expr := Expression{variables: variables}
+	for {
+		return expr, nil
+	}
 }
 
 type Executor interface {
@@ -46,49 +101,50 @@ type Executor interface {
 }
 
 type Var struct {
-	Name     rune
-	OpBefore TokenVal
+	Name rune
 }
 
 func (v Var) Execute(variables map[rune]bool) bool {
-	if v.OpBefore.Typ == SingleOp && v.OpBefore.Val == '!' {
-		return !variables[v.Name]
-	}
-
 	return variables[v.Name]
 }
 
 type Expr struct {
-	OpBefore TokenVal
-	Left     Executor
-	Op       TokenVal
-	Right    Executor
+	Left  Executor
+	Op    TokenVal
+	Right Executor
 }
 
 func (e Expr) Execute(variables map[rune]bool) bool {
 	leftVal := e.Left.Execute(variables)
 	rightVal := e.Right.Execute(variables)
 
-	safety := true
-	if e.OpBefore.Typ == SingleOp && e.OpBefore.Val == '!' {
-		safety = false
-	}
-
-	val := false
 	switch e.Op.Val {
 	case '&':
-		val = leftVal && rightVal
+		return leftVal && rightVal
 	case '|':
-		val = leftVal || rightVal
+		return leftVal || rightVal
 	case '>':
-		val = leftVal || !rightVal
+		return leftVal || !rightVal
 	case '-':
-		val = (leftVal && rightVal) || (!rightVal && !leftVal)
+		return (leftVal && rightVal) || (!rightVal && !leftVal)
 	case '+':
-		val = !((leftVal && rightVal) || (!rightVal && !leftVal))
+		return !((leftVal && rightVal) || (!rightVal && !leftVal))
 	}
 
-	return safety && val
+	return false
+}
+
+type ReverseExecutor struct {
+	Executor
+}
+
+func (r ReverseExecutor) Execute(variables map[rune]bool) bool {
+	return !r.Execute(variables)
+}
+
+type Row struct {
+	values map[rune]bool
+	result bool
 }
 
 func GenerateExamples(expr Expression) []Row {
