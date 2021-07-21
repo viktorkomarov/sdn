@@ -1,99 +1,27 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"math"
 )
-
-// E = V | S E | (E) | V D E
-// V = one of (A....Z)
-// S =  !
-// D =  & | '|' | > | - | +
 
 type Expression struct {
 	variables map[rune]bool
 	executor  Executor
 }
 
-func parseDoubleOp(tokens []TokenVal) error {
+func parseDoubleOp(tokens []TokenVal) ([]TokenVal, error) {
 	if len(tokens) == 0 {
-		return ErrEmptyTokens
+		return nil, ErrEndOfTokens
 	}
 
 	for _, val := range []rune{'&', '|', '>', '-', '+'} {
 		if val == tokens[0].Val {
-			return nil
+			return tokens[1:], nil
 		}
 	}
 
-	return fmt.Errorf("unknown double operation %s", string(tokens[0].Val))
-}
-
-var ErrEmptyTokens = errors.New("empty tokens")
-
-func parseExpr(tokens []TokenVal) (Executor, error) {
-	if len(tokens) == 0 {
-		return nil, ErrEmptyTokens
-	}
-
-	switch tokens[0].Typ {
-	case Variable:
-		if err := parseDoubleOp(tokens[1:]); err != nil {
-			if errors.Is(err, ErrEmptyTokens) {
-				return Var{Name: tokens[0].Val}, nil
-			}
-
-			return nil, err
-		}
-
-		second, err := parseExpr(tokens[2:])
-		if err != nil {
-			return nil, err
-		}
-
-		return Expr{
-			Left:  Var{Name: tokens[0].Val},
-			Right: second,
-			Op:    tokens[1],
-		}, nil
-	case SingleOp:
-		exec, err := parseExpr(tokens[1:])
-		if err != nil {
-			return nil, err
-		}
-		return ReverseExecutor{exec}, nil
-	case OpenBracket:
-		exec, err := parseExpr(tokens[1:])
-		if err != nil {
-			return nil, err
-		}
-
-		return exec, nil
-	case CloseBracket:
-		return nil, nil // ???
-	default:
-		return nil, fmt.Errorf("unexpected toke %s", string(tokens[0].Val))
-	}
-}
-
-func Parse(str string) (Expression, error) {
-	tokens, err := tokenize(str)
-	if err != nil {
-		return Expression{}, err
-	}
-
-	variables := make(map[rune]bool)
-	for _, token := range tokens {
-		if token.Typ == Variable {
-			variables[token.Val] = true
-		}
-	}
-
-	expr := Expression{variables: variables}
-	for {
-		return expr, nil
-	}
+	return nil, fmt.Errorf("unknown double operation %s", string(tokens[0].Val))
 }
 
 type Executor interface {

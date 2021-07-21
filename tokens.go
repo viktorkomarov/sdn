@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
 )
+
+var ErrEndOfTokens = errors.New("end of tokens")
 
 type Token int
 
@@ -14,6 +17,7 @@ const (
 	DoubleOp
 	OpenBracket
 	CloseBracket
+	Empty
 )
 
 type TokenVal struct {
@@ -21,7 +25,12 @@ type TokenVal struct {
 	Val rune
 }
 
-func tokenize(expr string) ([]TokenVal, error) {
+type Tokenizer struct {
+	tokens []TokenVal
+	cur    int
+}
+
+func NewTokenizer(expr string) (Tokenizer, error) {
 	tokens := make([]TokenVal, 0)
 
 	for _, symbol := range strings.ReplaceAll(expr, " ", "") {
@@ -37,7 +46,7 @@ func tokenize(expr string) ([]TokenVal, error) {
 			token = DoubleOp
 		default:
 			if !unicode.IsUpper(symbol) || !unicode.IsLetter(symbol) {
-				return nil, fmt.Errorf("unknown token %s", string(symbol))
+				return Tokenizer{}, fmt.Errorf("unknown token %s", string(symbol))
 			}
 
 			token = Variable
@@ -49,5 +58,16 @@ func tokenize(expr string) ([]TokenVal, error) {
 		})
 	}
 
-	return tokens, nil
+	return Tokenizer{
+		tokens: tokens,
+	}, nil
+}
+
+func (t Tokenizer) Next() (TokenVal, error) {
+	if t.cur == len(t.tokens) {
+		return TokenVal{}, ErrEndOfTokens
+	}
+
+	t.cur += 1
+	return t.tokens[t.cur-1], nil
 }
