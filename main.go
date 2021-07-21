@@ -1,27 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
 
 type Expression struct {
 	variables map[rune]bool
 	executor  Executor
-}
-
-func parseDoubleOp(tokens []TokenVal) ([]TokenVal, error) {
-	if len(tokens) == 0 {
-		return nil, ErrEndOfTokens
-	}
-
-	for _, val := range []rune{'&', '|', '>', '-', '+'} {
-		if val == tokens[0].Val {
-			return tokens[1:], nil
-		}
-	}
-
-	return nil, fmt.Errorf("unknown double operation %s", string(tokens[0].Val))
 }
 
 type Executor interface {
