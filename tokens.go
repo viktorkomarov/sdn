@@ -71,3 +71,15 @@ func (t Tokenizer) Next() (TokenVal, error) {
 	t.cur += 1
 	return t.tokens[t.cur-1], nil
 }
+
+func (t Tokenizer) Variables() map[rune]bool {
+	variables := make(map[rune]bool)
+
+	for i := range t.tokens {
+		if t.tokens[i].Typ == Variable {
+			variables[t.tokens[i].Val] = true
+		}
+	}
+
+	return variables
+}

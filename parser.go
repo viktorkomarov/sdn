@@ -17,7 +17,7 @@ type Parser struct {
 func (p Parser) parseDoubleOp() (TokenVal, error) {
 	token, err := p.tokenizer.Next()
 	if err != nil {
-		return TokenVal{}, err
+		return TokenVal{Typ: Empty}, ErrEndOfTokens
 	}
 
 	for _, val := range []rune{'&', '|', '>', '-', '+'} {
@@ -29,10 +29,10 @@ func (p Parser) parseDoubleOp() (TokenVal, error) {
 	return TokenVal{}, fmt.Errorf("unknown double operation %s", string(token.Val))
 }
 
-func (p Parser) parseExpr() (Executor, error) {
+func (p Parser) parseExpr() (Executor, Token, error) {
 	token, err := p.tokenizer.Next()
 	if err != nil {
-		return nil, err
+		return nil, Empty, ErrEndOfTokens
 	}
 
 	switch token.Typ {
@@ -40,40 +40,43 @@ func (p Parser) parseExpr() (Executor, error) {
 		op, err := p.parseDoubleOp()
 		if err != nil {
 			if errors.Is(err, ErrEndOfTokens) {
-				return Var{Name: token.Val}, nil
+				return Var{Name: token.Val}, token.Typ, nil
 			}
 
-			return nil, err
+			return nil, Empty, err
 		}
 
-		second, err := p.parseExpr()
+		second, lastToken, err := p.parseExpr()
 		if err != nil {
-			return nil, err
+			return nil, Empty, err
 		}
 
 		return Expr{
 			Left:  Var{Name: token.Val},
 			Right: second,
 			Op:    op,
-		}, nil
+		}, lastToken, nil
 	case SingleOp:
-		exec, err := p.parseExpr()
+		exec, _, err := p.parseExpr()
 		if err != nil {
-			return nil, err
+			return nil, Empty, err
 		}
 
-		return ReverseExecutor{exec}, nil
+		return ReverseExecutor{exec}, token.Typ, nil
 	case OpenBracket:
-		exec, err := p.parseExpr()
+		exec, lastToken, err := p.parseExpr()
 		if err != nil {
-			return nil, err
+			return nil, Empty, err
 		}
 
-		return exec, nil
+		if lastToken != CloseBracket {
+			return nil, lastToken, errors.New("unexpected end of expr )")
+		}
+		return exec, lastToken, nil
 	case CloseBracket:
-		return nil, nil // ???
+		return nil, CloseBracket, nil
 	default:
-		return nil, fmt.Errorf("unexpected toke %s", string(token.Val))
+		return nil, Empty, fmt.Errorf("unexpected toke %s", string(token.Val))
 	}
 
 }

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"math"
+	"strings"
 )
 
 type Expression struct {
@@ -37,7 +40,7 @@ func (e Expr) Execute(variables map[rune]bool) bool {
 	case '|':
 		return leftVal || rightVal
 	case '>':
-		return leftVal || !rightVal
+		return !leftVal && rightVal
 	case '-':
 		return (leftVal && rightVal) || (!rightVal && !leftVal)
 	case '+':
@@ -52,7 +55,7 @@ type ReverseExecutor struct {
 }
 
 func (r ReverseExecutor) Execute(variables map[rune]bool) bool {
-	return !r.Execute(variables)
+	return !r.Executor.Execute(variables)
 }
 
 type Row struct {
@@ -86,4 +89,56 @@ func GenerateExamples(expr Expression) []Row {
 	}
 
 	return rows
+}
+
+func filterRows(rows []Row, f func(r Row) bool) []Row {
+	n := 0
+	for _, x := range rows {
+		if f(x) {
+			rows[n] = x
+			n++
+		}
+	}
+	return rows[:n]
+}
+
+func BuildPDNF(rows []Row) string {
+	rows = filterRows(rows, func(r Row) bool { return r.result })
+
+	var builder strings.Builder
+	for i, row := range rows {
+		for _var, val := range row.values {
+			if !val {
+				builder.WriteRune('!')
+			}
+
+			builder.WriteRune(_var)
+		}
+
+		if i != len(rows)-1 {
+			builder.WriteString(" || ")
+		}
+	}
+
+	return builder.String()
+}
+
+func main() {
+	tokenizer, err := NewTokenizer("A > B")
+	if err != nil {
+		log.Fatalf("create tokenizer %v", err)
+	}
+
+	parser := Parser{tokenizer: tokenizer}
+	exec, _, err := parser.parseExpr()
+	if err != nil {
+		log.Fatalf("parse expr %v", err)
+	}
+
+	rows := GenerateExamples(Expression{
+		variables: tokenizer.Variables(),
+		executor:  exec,
+	})
+
+	fmt.Printf("%s\n", BuildPDNF(rows))
 }
