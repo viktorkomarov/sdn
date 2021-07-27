@@ -40,7 +40,7 @@ func (e Expr) Execute(variables map[rune]bool) bool {
 	case '|':
 		return leftVal || rightVal
 	case '>':
-		return !leftVal && rightVal
+		return !leftVal || rightVal
 	case '-':
 		return (leftVal && rightVal) || (!rightVal && !leftVal)
 	case '+':
@@ -75,11 +75,7 @@ func GenerateExamples(expr Expression) []Row {
 		values := make(map[rune]bool)
 
 		for i, r := range variables {
-			if ((1 << i) & mask) == 1 {
-				values[r] = true
-			} else {
-				values[r] = false
-			}
+			values[r] = ((1 << i) & mask) == (1 << i)
 		}
 
 		rows = append(rows, Row{

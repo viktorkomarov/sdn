@@ -30,7 +30,7 @@ type Tokenizer struct {
 	cur    int
 }
 
-func NewTokenizer(expr string) (Tokenizer, error) {
+func NewTokenizer(expr string) (*Tokenizer, error) {
 	tokens := make([]TokenVal, 0)
 
 	for _, symbol := range strings.ReplaceAll(expr, " ", "") {
@@ -46,7 +46,7 @@ func NewTokenizer(expr string) (Tokenizer, error) {
 			token = DoubleOp
 		default:
 			if !unicode.IsUpper(symbol) || !unicode.IsLetter(symbol) {
-				return Tokenizer{}, fmt.Errorf("unknown token %s", string(symbol))
+				return nil, fmt.Errorf("unknown token %s", string(symbol))
 			}
 
 			token = Variable
@@ -58,12 +58,12 @@ func NewTokenizer(expr string) (Tokenizer, error) {
 		})
 	}
 
-	return Tokenizer{
+	return &Tokenizer{
 		tokens: tokens,
 	}, nil
 }
 
-func (t Tokenizer) Next() (TokenVal, error) {
+func (t *Tokenizer) Next() (TokenVal, error) {
 	if t.cur == len(t.tokens) {
 		return TokenVal{}, ErrEndOfTokens
 	}
@@ -72,7 +72,7 @@ func (t Tokenizer) Next() (TokenVal, error) {
 	return t.tokens[t.cur-1], nil
 }
 
-func (t Tokenizer) Variables() map[rune]bool {
+func (t *Tokenizer) Variables() map[rune]bool {
 	variables := make(map[rune]bool)
 
 	for i := range t.tokens {

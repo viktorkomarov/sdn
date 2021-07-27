@@ -6,7 +6,7 @@ import (
 )
 
 type Parser struct {
-	tokenizer Tokenizer
+	tokenizer *Tokenizer
 }
 
 // E = V | S E | (E) | V D E
